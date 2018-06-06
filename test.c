@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <roboticscape.h>
 
@@ -12,18 +13,18 @@ uint8_t initialize() {
     return rc_initialize() || rc_enable_motors();
 }
 
-uint8_t set_direction_pin(leg_t &leg, uint8_t dir) {
-    leg.motor_dir = dir;
-    return rc_set_pinmux_mode(dir, PINMUX_GPIO_PD) || rc_gpio_export(dir) || rc_gpio_set_dir(dir, OUTPUT_PIN);
+uint8_t set_direction_pin(leg_t * leg, uint8_t dir) {
+    leg->motor_dir = dir;
+    return rc_set_pinmux_mode(dir, PINMUX_GPIO); // || rc_gpio_export(dir) || rc_gpio_set_dir(dir, OUTPUT_PIN);
 }
 
-uint8_t set_limit_switch(leg_t &leg, uint8_t bus, uint8_t pin) {
-    leg.limit_switch = bus * 32 + pin;
+uint8_t set_limit_switch(leg_t * leg, uint8_t bus, uint8_t pin) {
+    leg->limit_switch = bus * 32 + pin;
     return rc_gpio_set_dir(bus * 32 + pin, INPUT_PIN);
 }
 
-uint8_t set_motor(leg_t &leg, uint8_t controller) {
-    leg.motor_controller = controller;
+uint8_t set_motor(leg_t * leg, uint8_t controller) {
+    leg->motor_controller = controller;
     return rc_set_motor_brake(controller);
 }
 
@@ -32,10 +33,10 @@ void main() {
 
     if(initialize() ||
         set_motor(&front, 2) || set_direction_pin(&front, 111) || set_limit_switch(&front, 1, 17) ||
-        set_motor(&rear, 1) || set_direction_pin(&rear, ) || set_limit_switch(&rear, 3, 17)) {
+        set_motor(&rear, 1) || set_direction_pin(&rear, 15) || set_limit_switch(&rear, 3, 17)) {
         
         printf("[electrical_io] ERROR: failed to run rc_initialize(), are you root?\n");
-	    return 1;
+	    return;
     } else {
         front.encoder_reader = 4;
         rear.encoder_reader = 3;
@@ -45,7 +46,7 @@ void main() {
     
     if(rc_gpio_set_value(front.motor_dir, 1) || rc_gpio_set_value(rear.motor_dir, 1)) {
 	    printf("gpio failure");
-	    return 1;
+	    return;
     }
 
     // Move legs to rear
