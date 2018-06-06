@@ -1,62 +1,72 @@
 #include <stdio.h>
 #include <roboticscape.h>
 
-void main() {
-    // Front Left
-    int motor_controller_f = 2;
-    int motor_dir_f = 111;
-    int limit_switch_f = 1 * 32 + 17;
-    int encoder_reader_f = 4;
-    
+typedef struct Leg {
+    uint8_t motor_controller;
+    uint8_t motor_dir;
+    uint8_t limit_switch;
+    uint8_t encoder_reader;
+} leg_t;
 
-    int motor_controller_r = 1;
-    int motor_dir_r = 3 * 32 + 2;
-    int limit_switch_r = 3 * 32 + 17;
-    int encoder_reader_r = 3;
-    
-    if(
-        rc_initialize() ||
-        rc_enable_motors() ||
-        rc_set_motor_brake(motor_controller_f) || rc_set_motor_brake(motor_controller_r) ||
-        rc_gpio_export(limit_switch_f) || rc_gpio_export(limit_switch_r) || rc_gpio_export(motor_dir_r) || rc_gpio_export(motor_dir_f) ||
-        rc_gpio_set_dir(limit_switch_f, INPUT_PIN) || rc_gpio_set_dir(limit_switch_r, INPUT_PIN) ||
-	rc_set_pinmux_mode(motor_dir_f, PINMUX_GPIO_PD) || //rc_set_pinmux_mode(motor_dir_r, PINMUX_GPIO_PD) ||
-	rc_gpio_set_dir(motor_dir_r, OUTPUT_PIN) || rc_gpio_set_dir(motor_dir_f, OUTPUT_PIN)
-    ) {
+uint8_t initialize() {
+    return rc_initialize() || rc_enable_motors();
+}
+
+uint8_t set_direction_pin(leg_t &leg, uint8_t dir) {
+    leg.motor_dir = dir;
+    return rc_set_pinmux_mode(dir, PINMUX_GPIO_PD) || rc_gpio_export(dir) || rc_gpio_set_dir(dir, OUTPUT_PIN);
+}
+
+uint8_t set_limit_switch(leg_t &leg, uint8_t bus, uint8_t pin) {
+    leg.limit_switch = bus * 32 + pin;
+    return rc_gpio_set_dir(bus * 32 + pin, INPUT_PIN);
+}
+
+uint8_t set_motor(leg_t &leg, uint8_t controller) {
+    leg.motor_controller = controller;
+    return rc_set_motor_brake(controller);
+}
+
+void main() {
+    leg_t front, rear;
+
+    if(initialize() ||
+        set_motor(&front, 2) || set_direction_pin(&front, 111) || set_limit_switch(&front, 1, 17) ||
+        set_motor(&rear, 1) || set_direction_pin(&rear, ) || set_limit_switch(&rear, 3, 17)) {
+        
         printf("[electrical_io] ERROR: failed to run rc_initialize(), are you root?\n");
-	return;
+	    return 1;
+    } else {
+        front.encoder_reader = 4;
+        rear.encoder_reader = 3;
     }
 
-    if(
-
-    )
-
-    printf("Initial encoder values - Front: %d\tRear: %d\n", rc_get_encoder_pos(encoder_reader_f), rc_get_encoder_pos(encoder_reader_r));
+    printf("Initial encoder values - Front: %d\tRear: %d\n", rc_get_encoder_pos(front.encoder_reader), rc_get_encoder_pos(rear.encoder_reader));
     
-    if(rc_gpio_set_value(motor_dir_f, 1) || rc_gpio_set_value(motor_dir_r, 1)) {
-	printf("gpio failure");
-	return;
+    if(rc_gpio_set_value(front.motor_dir, 1) || rc_gpio_set_value(rear.motor_dir, 1)) {
+	    printf("gpio failure");
+	    return 1;
     }
 
     // Move legs to rear
-    while(rc_gpio_get_value(limit_switch_r) != 0) {
-        rc_set_motor(motor_controller_f, -0.1);
-        rc_set_motor(motor_controller_r, -0.1);
+    while(rc_gpio_get_value(rear.limit_switch) != 0) {
+        rc_set_motor(front.motor_controller, -0.1);
+        rc_set_motor(rear.motor_controller, -0.1);
     }
 
-    printf("Rear Limit encoder values - Front: %d\tRear: %d\n", rc_get_encoder_pos(encoder_reader_f), rc_get_encoder_pos(encoder_reader_r));
+    printf("Rear Limit encoder values - Front: %d\tRear: %d\n", rc_get_encoder_pos(front.encoder_reader), rc_get_encoder_pos(rear.encoder_reader));
 
-    if(rc_gpio_set_value(motor_dir_f, 0) || rc_gpio_set_value(motor_dir_r, 0)) {
-	printf("gpio failure");
-	return;
+    if(rc_gpio_set_value(front.motor_dir, 0) || rc_gpio_set_value(rear.motor_dir, 0)) {
+	    printf("gpio failure");
+	    return;
     }
 
-    while(rc_gpio_get_value(limit_switch_f) != 0) {
-        rc_set_motor(motor_controller_f, -0.1);
-        rc_set_motor(motor_controller_r, -0.1);
+    while(rc_gpio_get_value(front.limit_switch) != 0) {
+        rc_set_motor(front.motor_controller, -0.1);
+        rc_set_motor(rear.motor_controller, -0.1);
     }
 
-    printf("Front Limit encoder values - Front: %d\tRear %d\n", rc_get_encoder_pos(encoder_reader_f), rc_get_encoder_pos(encoder_reader_r));
+    printf("Front Limit encoder values - Front: %d\tRear %d\n", rc_get_encoder_pos(front.encoder_reader), rc_get_encoder_pos(rear.encoder_reader));
     
     rc_cleanup();
 }
